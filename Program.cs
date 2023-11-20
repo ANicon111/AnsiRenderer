@@ -1,0 +1,3 @@
+﻿using AnsiRenderer;
+
+Tests.Run();
