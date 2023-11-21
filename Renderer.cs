@@ -7,12 +7,19 @@ namespace AnsiRenderer
         private uint r, g, b;
         private double a;
 
-
         public static readonly Color Invalid = new()
         {
             r = 256,
             g = 256,
             b = 256,
+            a = -1
+        };
+
+        public static readonly Color Reset = new()
+        {
+            r = 0,
+            g = 0,
+            b = 0,
             a = -1
         };
 
@@ -703,12 +710,18 @@ namespace AnsiRenderer
 
         public void SetFgColor(Color color)
         {
-            Write($"\x1B[38;2;{color.R};{color.G};{color.B}m");
+            if (color == Color.Reset)
+                Write($"\x1B[39m");
+            else
+                Write($"\x1B[38;2;{color.R};{color.G};{color.B}m");
         }
 
         public void SetBgColor(Color color)
         {
-            Write($"\x1B[48;2;{color.R};{color.G};{color.B}m");
+            if (color == Color.Reset)
+                Write($"\x1B[49m");
+            else
+                Write($"\x1B[48;2;{color.R};{color.G};{color.B}m");
         }
 
         public void Flush()
@@ -727,13 +740,14 @@ namespace AnsiRenderer
     {
         private int x;
         private int y;
-        public readonly int Width;
-        public readonly int Height;
+        private int width;
+        private int height;
+        private char defaultCharacter;
 
         private readonly string[] lines;
         private readonly List<string[]> animation = new();
         private int frame = 0;
-        private readonly Pixel[,] pixels;
+        private Pixel[,] pixels;
         private bool update = true;
         private List<RendererObject> subObjects = new();
         private List<ColorArea> colorAreas = new();
@@ -744,6 +758,7 @@ namespace AnsiRenderer
         private Alignment? externalAlignmentY;
 
         private readonly List<RendererObject> Parents = new();
+        private bool sizeChanged = false;
 
         public void UpdateParents()
         {
@@ -767,6 +782,7 @@ namespace AnsiRenderer
             string text = "",
             string[]? animation = null,
             int startFrame = 0,
+            char defaultCharacter = '\0',
             RendererObject[]? subObjects = null,
             ColorArea[]? colorAreas = null,
             Alignment internalAlignmentX = Alignment.Start,
@@ -779,8 +795,8 @@ namespace AnsiRenderer
             if (geometry != null)
             {
                 Rectangle Geometry = (Rectangle)geometry;
-                Width = Geometry.Width;
-                Height = Geometry.Height;
+                width = Geometry.Width;
+                height = Geometry.Height;
                 X = Geometry.X;
                 Y = Geometry.Y;
             }
@@ -804,8 +820,8 @@ namespace AnsiRenderer
                     this.subObjects = subObjects.ToList();
                     foreach (RendererObject subObject in subObjects)
                     {
-                        width = int.Max(width, subObject.Width + subObject.X);
-                        height = int.Max(height, subObject.Height + subObject.Y);
+                        width = int.Max(width, subObject.width + subObject.X);
+                        height = int.Max(height, subObject.height + subObject.Y);
                         subObject.Parents.Add(this);
                     }
                 }
@@ -813,11 +829,12 @@ namespace AnsiRenderer
                     this.colorAreas = colorAreas.ToList();
                 X = x;
                 Y = y;
-                Width = width;
-                Height = height;
+                this.width = width;
+                this.height = height;
             }
             Frame = startFrame;
-            pixels = new Pixel[Width, Height];
+            this.defaultCharacter = defaultCharacter;
+            pixels = new Pixel[width, height];
             ExternalAlignmentX = externalAlignmentX;
             ExternalAlignmentY = externalAlignmentY;
             InternalAlignmentX = internalAlignmentX;
@@ -831,11 +848,17 @@ namespace AnsiRenderer
                     return pixels;
                 update = false;
 
-                for (int i = 0; i < Width; i++)
+                if (sizeChanged)
                 {
-                    for (int j = 0; j < Height; j++)
+                    pixels = new Pixel[width, height];
+                    sizeChanged = false;
+                }
+
+                for (int i = 0; i < width; i++)
+                {
+                    for (int j = 0; j < height; j++)
                     {
-                        pixels[i, j] = new();
+                        pixels[i, j] = new(defaultCharacter);
                     }
                 }
 
@@ -844,29 +867,29 @@ namespace AnsiRenderer
                 int yEnd = lines.Length;
                 if (InternalAlignmentY == Alignment.Center)
                 {
-                    yStart += Height / 2 - lines.Length / 2;
-                    yEnd += Height / 2 - lines.Length / 2;
+                    yStart += height / 2 - lines.Length / 2;
+                    yEnd += height / 2 - lines.Length / 2;
                 }
                 if (InternalAlignmentY == Alignment.Bottom)
                 {
-                    yStart = Height - lines.Length;
-                    yEnd = Height;
+                    yStart = height - lines.Length;
+                    yEnd = height;
                 }
-                for (int j = int.Max(0, yStart); j < int.Min(Height, yEnd); j++)
+                for (int j = int.Max(0, yStart); j < int.Min(height, yEnd); j++)
                 {
                     int xStart = 0;
                     int xEnd = lines[j - yStart].Length;
                     if (InternalAlignmentX == Alignment.Center)
                     {
-                        xStart += Width / 2 - lines[j - yStart].Length / 2;
-                        xEnd += Width / 2 - lines[j - yStart].Length / 2;
+                        xStart += width / 2 - lines[j - yStart].Length / 2;
+                        xEnd += width / 2 - lines[j - yStart].Length / 2;
                     }
                     if (InternalAlignmentX == Alignment.Right)
                     {
-                        xStart = Width - lines[j - yStart].Length;
-                        xEnd = Width;
+                        xStart = width - lines[j - yStart].Length;
+                        xEnd = width;
                     }
-                    for (int i = int.Max(0, xStart); i < int.Min(Width, xEnd); i++)
+                    for (int i = int.Max(0, xStart); i < int.Min(width, xEnd); i++)
                     {
                         pixels[i, j].Ch = lines[j - yStart][i - xStart];
                     }
@@ -880,29 +903,29 @@ namespace AnsiRenderer
                     int animationYEnd = animationLines.Length;
                     if (InternalAlignmentY == Alignment.Center)
                     {
-                        animationYStart += Height / 2 - animationLines.Length / 2;
-                        animationYEnd += Height / 2 - animationLines.Length / 2;
+                        animationYStart += height / 2 - animationLines.Length / 2;
+                        animationYEnd += height / 2 - animationLines.Length / 2;
                     }
                     if (InternalAlignmentY == Alignment.Bottom)
                     {
-                        animationYStart += Height - animationLines.Length;
-                        animationYEnd += Height;
+                        animationYStart += height - animationLines.Length;
+                        animationYEnd += height;
                     }
-                    for (int j = int.Max(0, animationYStart); j < int.Min(Height, animationYEnd); j++)
+                    for (int j = int.Max(0, animationYStart); j < int.Min(height, animationYEnd); j++)
                     {
                         int animationXStart = 0;
                         int animationXEnd = animationLines[j - animationYStart].Length;
                         if (InternalAlignmentX == Alignment.Center)
                         {
-                            animationXStart += Width / 2 - animationLines[j - animationYStart].Length / 2;
-                            animationXEnd += Width / 2 - animationLines[j - animationYStart].Length / 2;
+                            animationXStart += width / 2 - animationLines[j - animationYStart].Length / 2;
+                            animationXEnd += width / 2 - animationLines[j - animationYStart].Length / 2;
                         }
                         if (InternalAlignmentX == Alignment.Right)
                         {
-                            animationXStart += Width - animationLines[j - animationYStart].Length;
-                            animationXEnd += Width;
+                            animationXStart += width - animationLines[j - animationYStart].Length;
+                            animationXEnd += width;
                         }
-                        for (int i = int.Max(0, animationXStart); i < int.Min(Width, animationXEnd); i++)
+                        for (int i = int.Max(0, animationXStart); i < int.Min(width, animationXEnd); i++)
                         {
                             pixels[i, j].Ch = animationLines[j - animationYStart][i - animationXStart];
                         }
@@ -911,9 +934,9 @@ namespace AnsiRenderer
 
 
                 //sub-objects and colors drawing
-                for (int i = 0; i < Width; i++)
+                for (int i = 0; i < width; i++)
                 {
-                    for (int j = 0; j < Height; j++)
+                    for (int j = 0; j < height; j++)
                     {
                         foreach (ColorArea colorArea in colorAreas)
                         {
@@ -926,22 +949,22 @@ namespace AnsiRenderer
                                 {
                                     if (colorArea.AlignmentX == Alignment.Center)
                                     {
-                                        extraX = Width / 2 - new Rectangle(colorArea.Geometry).Width / 2;
+                                        extraX = width / 2 - new Rectangle(colorArea.Geometry).Width / 2;
                                     }
                                     if (colorArea.AlignmentX == Alignment.Right)
                                     {
-                                        extraX = Width - (colorArea.Geometry ?? new Rectangle()).Width;
+                                        extraX = width - (colorArea.Geometry ?? new Rectangle()).Width;
                                     }
                                 }
                                 else
                                 {
                                     if (InternalAlignmentX == Alignment.Center)
                                     {
-                                        extraX = Width / 2 - new Rectangle(colorArea.Geometry).Width / 2;
+                                        extraX = width / 2 - new Rectangle(colorArea.Geometry).Width / 2;
                                     }
                                     if (InternalAlignmentX == Alignment.Right)
                                     {
-                                        extraX = Width - (colorArea.Geometry ?? new Rectangle()).Width;
+                                        extraX = width - (colorArea.Geometry ?? new Rectangle()).Width;
                                     }
                                 }
 
@@ -949,22 +972,22 @@ namespace AnsiRenderer
                                 {
                                     if (colorArea.AlignmentY == Alignment.Center)
                                     {
-                                        extraY = Height / 2 - new Rectangle(colorArea.Geometry).Height / 2;
+                                        extraY = height / 2 - new Rectangle(colorArea.Geometry).Height / 2;
                                     }
                                     if (colorArea.AlignmentY == Alignment.Right)
                                     {
-                                        extraY = Height - (colorArea.Geometry ?? new Rectangle()).Height;
+                                        extraY = height - (colorArea.Geometry ?? new Rectangle()).Height;
                                     }
                                 }
                                 else
                                 {
                                     if (InternalAlignmentY == Alignment.Center)
                                     {
-                                        extraY = Height / 2 - (colorArea.Geometry ?? new Rectangle()).Height / 2;
+                                        extraY = height / 2 - (colorArea.Geometry ?? new Rectangle()).Height / 2;
                                     }
                                     if (InternalAlignmentY == Alignment.Bottom)
                                     {
-                                        extraY = Height - (colorArea.Geometry ?? new Rectangle()).Height;
+                                        extraY = height - (colorArea.Geometry ?? new Rectangle()).Height;
                                     }
                                 }
 
@@ -997,22 +1020,22 @@ namespace AnsiRenderer
                             {
                                 if (subObject.ExternalAlignmentX == Alignment.Center)
                                 {
-                                    extraX = Width / 2 - subObject.Width / 2;
+                                    extraX = width / 2 - subObject.width / 2;
                                 }
                                 if (subObject.ExternalAlignmentX == Alignment.Right)
                                 {
-                                    extraX = Width - subObject.Width;
+                                    extraX = width - subObject.width;
                                 }
                             }
                             else
                             {
                                 if (InternalAlignmentX == Alignment.Center)
                                 {
-                                    extraX = Width / 2 - subObject.Width / 2;
+                                    extraX = width / 2 - subObject.width / 2;
                                 }
                                 if (InternalAlignmentX == Alignment.Right)
                                 {
-                                    extraX = Width - subObject.Width;
+                                    extraX = width - subObject.width;
                                 }
                             }
 
@@ -1020,27 +1043,27 @@ namespace AnsiRenderer
                             {
                                 if (subObject.ExternalAlignmentY == Alignment.Center)
                                 {
-                                    extraY = Height / 2 - subObject.Height / 2;
+                                    extraY = height / 2 - subObject.height / 2;
                                 }
                                 if (subObject.ExternalAlignmentY == Alignment.Right)
                                 {
-                                    extraY = Height - subObject.Height;
+                                    extraY = height - subObject.height;
                                 }
                             }
                             else
                             {
                                 if (InternalAlignmentY == Alignment.Center)
                                 {
-                                    extraY = Height / 2 - subObject.Height / 2;
+                                    extraY = height / 2 - subObject.height / 2;
                                 }
                                 if (InternalAlignmentY == Alignment.Bottom)
                                 {
-                                    extraY = Height - subObject.Height;
+                                    extraY = height - subObject.height;
                                 }
                             }
                             if (
-                                subObject.X + extraX <= i && i < subObject.X + extraX + subObject.Width &&
-                                subObject.Y + extraY <= j && j < subObject.Y + extraY + subObject.Height
+                                subObject.X + extraX <= i && i < subObject.X + extraX + subObject.width &&
+                                subObject.Y + extraY <= j && j < subObject.Y + extraY + subObject.height
                             )
                             {
                                 pixels[i, j] = pixels[i, j].WithOverlay(subPixels[i - subObject.X - extraX, j - subObject.Y - extraY]);
@@ -1061,6 +1084,18 @@ namespace AnsiRenderer
         public int Y
         {
             get => y; set { y = value; UpdateParents(); }
+        }
+        public int Width
+        {
+            get => width; set { width = value; Update(); sizeChanged = true; }
+        }
+        public int Height
+        {
+            get => height; set { height = value; Update(); sizeChanged = true; }
+        }
+        public char DefaultCharacter
+        {
+            get => defaultCharacter; set { defaultCharacter = value; Update(); }
         }
         public List<RendererObject> SubObjects
         {
@@ -1160,15 +1195,8 @@ namespace AnsiRenderer
             frameBuffer[x, y] = pixel;
         }
 
-        public void Update(bool resize = true)
+        public void Update(bool forceRedraw = true, bool preventBackgroundChange = false)
         {
-            bool redrawEverything = false;
-            if (resize)
-                if (Console.WindowWidth != terminalWidth || Console.WindowHeight != terminalHeight)
-                {
-                    redrawEverything = true;
-                    Reset();
-                }
             oldFrameBuffer = (Pixel[,])frameBuffer.Clone();
             int x = Object.X;
             int y = Object.Y;
@@ -1176,29 +1204,42 @@ namespace AnsiRenderer
             if (Object.ExternalAlignmentX == Alignment.End) x += TerminalWidth - Object.Width;
             if (Object.ExternalAlignmentY == Alignment.Center) y += TerminalHeight / 2 - Object.Height / 2;
             if (Object.ExternalAlignmentY == Alignment.End) y += TerminalHeight - Object.Height;
-            for (int j = y > 0 ? y : 0; j < Object.Height + y && j < terminalHeight; j++)
+            for (int j = 0; j < terminalHeight; j++)
             {
-                Terminal.SetCursorPosition(x > 0 ? x : 0, j);
-                for (int i = x > 0 ? x : 0; i < Object.Width + x && i < terminalWidth; i++)
-                    frameBuffer[i, j] = Object.Pixels[i - x, j - y];
+                for (int i = 0; i < terminalWidth; i++)
+                    if (x <= i && i < Object.Width + x && y <= j && j < Object.Height + y)
+                        frameBuffer[i, j] = Object.Pixels[i - x, j - y];
             }
-            for (int j = y > 0 ? y : 0; j < terminalHeight && j < Object.Height + y; j++)
+            for (int j = 0; j < terminalHeight; j++)
             {
                 bool updateRow = false;
-                for (int i = x > 0 ? x : 0; i < terminalWidth && i < Object.Width + x; i++)
-                    if (frameBuffer[i, j] != oldFrameBuffer[i, j] || updateRow || redrawEverything)
+                for (int i = 0; i < terminalWidth; i++)
+                    if (frameBuffer[i, j] != oldFrameBuffer[i, j] || updateRow || forceRedraw)
                     {
                         if (!updateRow)
                         {
                             updateRow = true;
                             Terminal.SetCursorPosition(i, j);
                         }
-                        WritePixel(i, j, frameBuffer[i, j]);
+                        if (x <= i && i < Object.Width + x && y <= j && j < Object.Height + y)
+                            WritePixel(i, j, frameBuffer[i, j]);
+                        else if (!preventBackgroundChange || oldFrameBuffer[i, j].Ch > ' ') WritePixel(i, j, new(' ', Color.Reset, Color.Reset));
                     }
-
             }
             Terminal.SetCursorPosition(0, 0);
             Terminal.Flush();
+        }
+
+        public bool UpdateScreenSize()
+        {
+            bool updated = false;
+            if (Console.WindowWidth != terminalWidth || Console.WindowHeight != terminalHeight)
+            {
+                Reset();
+                Update(true);
+                updated = true;
+            }
+            return updated;
         }
 
         public ConsoleKeyInfo ReadKey()
