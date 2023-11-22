@@ -2,6 +2,27 @@ using System.Globalization;
 
 namespace AnsiRenderer
 {
+    public struct Border
+    {
+        public char TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left;
+
+        public Border(char topLeft, char top, char topRight, char right, char bottomRight, char bottom, char bottomLeft, char left)
+        {
+            TopLeft = topLeft; Top = top; TopRight = topRight; Right = right; BottomRight = bottomRight; Bottom = bottom; BottomLeft = bottomLeft; Left = left;
+        }
+
+        public static Border FromString(string sides) => new(sides[0], sides[1], sides[2], sides[3], sides[4], sides[5], sides[6], sides[7]);
+    }
+
+    public static class Borders
+    {
+        public static readonly Border Simple = new('┌', '─', '┐', '│', '┘', '─', '└', '│');
+        public static readonly Border Rounded = new('╭', '─', '╮', '│', '╯', '─', '╰', '│');
+        public static readonly Border Bold = new('┏', '━', '┓', '┃', '┛', '━', '┗', '┃');
+        public static readonly Border Blocky = new('▄', '▄', '▄', '█', '▀', '▀', '▀', '█');
+        public static readonly Border Double = new('╔', '═', '╗', '║', '╝', '═', '╚', '║');
+    }
+
     public struct Color
     {
         private uint r, g, b;
@@ -746,11 +767,13 @@ namespace AnsiRenderer
 
         private readonly string[] lines;
         private readonly List<string[]> animation = new();
-        private int frame = 0;
+        private int animationFrame = 0;
         private Pixel[,] pixels;
         private bool update = true;
         private List<RendererObject> subObjects = new();
         private List<ColorArea> colorAreas = new();
+        private Border? border;
+
 
         private Alignment internalAlignmentX = Alignment.Start;
         private Alignment internalAlignmentY = Alignment.Start;
@@ -785,6 +808,7 @@ namespace AnsiRenderer
             char defaultCharacter = '\0',
             RendererObject[]? subObjects = null,
             ColorArea[]? colorAreas = null,
+            Border? border = null,
             Alignment internalAlignmentX = Alignment.Start,
             Alignment internalAlignmentY = Alignment.Start,
             Alignment? externalAlignmentX = null,
@@ -827,18 +851,24 @@ namespace AnsiRenderer
                 }
                 if (colorAreas != null)
                     this.colorAreas = colorAreas.ToList();
+                if (border != null)
+                {
+                    width += 2;
+                    height += 2;
+                }
                 X = x;
                 Y = y;
                 this.width = width;
                 this.height = height;
             }
-            Frame = startFrame;
-            this.defaultCharacter = defaultCharacter;
             pixels = new Pixel[width, height];
-            ExternalAlignmentX = externalAlignmentX;
-            ExternalAlignmentY = externalAlignmentY;
-            InternalAlignmentX = internalAlignmentX;
-            InternalAlignmentY = internalAlignmentY;
+            animationFrame = startFrame;
+            this.border = border;
+            this.defaultCharacter = defaultCharacter;
+            this.externalAlignmentX = externalAlignmentX;
+            this.externalAlignmentY = externalAlignmentY;
+            this.internalAlignmentX = internalAlignmentX;
+            this.internalAlignmentY = internalAlignmentY;
         }
         public Pixel[,] Pixels
         {
@@ -862,32 +892,33 @@ namespace AnsiRenderer
                     }
                 }
 
+                int borderOffset = border == null ? 0 : 1;
                 //text drawing
-                int yStart = 0;
-                int yEnd = lines.Length;
+                int yStart = borderOffset;
+                int yEnd = lines.Length + borderOffset;
                 if (InternalAlignmentY == Alignment.Center)
                 {
-                    yStart += height / 2 - lines.Length / 2;
-                    yEnd += height / 2 - lines.Length / 2;
+                    yStart = height / 2 - lines.Length / 2;
+                    yEnd = height / 2 - lines.Length / 2 + lines.Length;
                 }
                 if (InternalAlignmentY == Alignment.Bottom)
                 {
-                    yStart = height - lines.Length;
-                    yEnd = height;
+                    yStart = height - lines.Length - borderOffset;
+                    yEnd = height - borderOffset;
                 }
                 for (int j = int.Max(0, yStart); j < int.Min(height, yEnd); j++)
                 {
-                    int xStart = 0;
-                    int xEnd = lines[j - yStart].Length;
+                    int xStart = borderOffset;
+                    int xEnd = lines[j - yStart].Length + borderOffset;
                     if (InternalAlignmentX == Alignment.Center)
                     {
-                        xStart += width / 2 - lines[j - yStart].Length / 2;
-                        xEnd += width / 2 - lines[j - yStart].Length / 2;
+                        xStart = width / 2 - lines[j - yStart].Length / 2;
+                        xEnd = width / 2 - lines[j - yStart].Length / 2 + lines[j - yStart].Length;
                     }
                     if (InternalAlignmentX == Alignment.Right)
                     {
-                        xStart = width - lines[j - yStart].Length;
-                        xEnd = width;
+                        xStart = width - lines[j - yStart].Length - borderOffset;
+                        xEnd = width - borderOffset;
                     }
                     for (int i = int.Max(0, xStart); i < int.Min(width, xEnd); i++)
                     {
@@ -898,37 +929,60 @@ namespace AnsiRenderer
                 //animation drawing
                 if (animation.Count != 0)
                 {
-                    string[] animationLines = animation[frame];
-                    int animationYStart = 0;
-                    int animationYEnd = animationLines.Length;
+                    string[] animationLines = animation[animationFrame];
+                    int animationYStart = borderOffset;
+                    int animationYEnd = animationLines.Length + borderOffset;
                     if (InternalAlignmentY == Alignment.Center)
                     {
-                        animationYStart += height / 2 - animationLines.Length / 2;
-                        animationYEnd += height / 2 - animationLines.Length / 2;
+                        animationYStart = height / 2 - animationLines.Length / 2;
+                        animationYEnd = height / 2 - animationLines.Length / 2 + animationLines.Length;
                     }
                     if (InternalAlignmentY == Alignment.Bottom)
                     {
-                        animationYStart += height - animationLines.Length;
-                        animationYEnd += height;
+                        animationYStart = height - animationLines.Length - borderOffset;
+                        animationYEnd = height - borderOffset;
                     }
                     for (int j = int.Max(0, animationYStart); j < int.Min(height, animationYEnd); j++)
                     {
-                        int animationXStart = 0;
-                        int animationXEnd = animationLines[j - animationYStart].Length;
+                        int animationXStart = borderOffset;
+                        int animationXEnd = animationLines[j - animationYStart].Length + borderOffset;
                         if (InternalAlignmentX == Alignment.Center)
                         {
-                            animationXStart += width / 2 - animationLines[j - animationYStart].Length / 2;
-                            animationXEnd += width / 2 - animationLines[j - animationYStart].Length / 2;
+                            animationXStart = width / 2 - animationLines[j - animationYStart].Length / 2;
+                            animationXEnd = width / 2 - animationLines[j - animationYStart].Length / 2 + animationLines[j - animationYStart].Length;
                         }
                         if (InternalAlignmentX == Alignment.Right)
                         {
-                            animationXStart += width - animationLines[j - animationYStart].Length;
-                            animationXEnd += width;
+                            animationXStart = width - animationLines[j - animationYStart].Length - borderOffset;
+                            animationXEnd = width - borderOffset;
                         }
                         for (int i = int.Max(0, animationXStart); i < int.Min(width, animationXEnd); i++)
                         {
                             pixels[i, j].Ch = animationLines[j - animationYStart][i - animationXStart];
                         }
+                    }
+                }
+
+                //border drawing
+                if (border != null)
+                {
+                    Border b = (Border)border;
+
+                    pixels[0, 0].Ch = b.TopLeft;
+                    pixels[width - 1, 0].Ch = b.TopRight;
+                    pixels[0, height - 1].Ch = b.BottomLeft;
+                    pixels[width - 1, height - 1].Ch = b.BottomRight;
+
+                    for (int i = 1; i < width - 1; i++)
+                    {
+                        pixels[i, 0].Ch = b.Top;
+                        pixels[i, height - 1].Ch = b.Bottom;
+                    }
+
+                    for (int j = 1; j < height - 1; j++)
+                    {
+                        pixels[0, j].Ch = b.Left;
+                        pixels[width - 1, j].Ch = b.Right;
                     }
                 }
 
@@ -1107,14 +1161,19 @@ namespace AnsiRenderer
             get { Update(); return colorAreas; }
             set { Update(); colorAreas = value; }
         }
-        public int Frame
+        public Border? Border
         {
-            get => frame;
+            get { Update(); return border; }
+            set { Update(); border = value; }
+        }
+        public int AnimationFrame
+        {
+            get => animationFrame;
             set
             {
                 int count = animation.Count;
                 if (count > 0)
-                    frame = (value > 0 ? value : count + value % count) % count;
+                    animationFrame = (value > 0 ? value : count + value % count) % count;
                 Update();
             }
         }
@@ -1195,7 +1254,7 @@ namespace AnsiRenderer
             frameBuffer[x, y] = pixel;
         }
 
-        public void Update(bool forceRedraw = true, bool preventBackgroundChange = false)
+        public void Update(bool forceRedraw = true, bool preventBackgroundChange = false, bool limitToObjectScope = false)
         {
             oldFrameBuffer = (Pixel[,])frameBuffer.Clone();
             int x = Object.X;
@@ -1204,16 +1263,13 @@ namespace AnsiRenderer
             if (Object.ExternalAlignmentX == Alignment.End) x += TerminalWidth - Object.Width;
             if (Object.ExternalAlignmentY == Alignment.Center) y += TerminalHeight / 2 - Object.Height / 2;
             if (Object.ExternalAlignmentY == Alignment.End) y += TerminalHeight - Object.Height;
-            for (int j = 0; j < terminalHeight; j++)
-            {
-                for (int i = 0; i < terminalWidth; i++)
-                    if (x <= i && i < Object.Width + x && y <= j && j < Object.Height + y)
-                        frameBuffer[i, j] = Object.Pixels[i - x, j - y];
-            }
-            for (int j = 0; j < terminalHeight; j++)
+            for (int j = int.Max(0, y); j < int.Min(terminalHeight, Object.Height + y); j++)
+                for (int i = int.Max(0, x); i < int.Min(terminalWidth, Object.Width + x); i++)
+                    frameBuffer[i, j] = Object.Pixels[i - x, j - y];
+            for (int j = limitToObjectScope ? int.Max(0, y) : 0; j < (limitToObjectScope ? int.Min(terminalHeight, Object.Height + y) : terminalHeight); j++)
             {
                 bool updateRow = false;
-                for (int i = 0; i < terminalWidth; i++)
+                for (int i = limitToObjectScope ? int.Max(0, x) : 0; i < (limitToObjectScope ? int.Min(terminalWidth, Object.Width + x) : terminalWidth); i++)
                     if (frameBuffer[i, j] != oldFrameBuffer[i, j] || updateRow || forceRedraw)
                     {
                         if (!updateRow)

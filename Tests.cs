@@ -100,7 +100,7 @@ namespace AnsiRenderer
         public static void CheckRenderingSystems()
         {
             Console.CursorVisible = false;
-            Console.WriteLine("Rendering sample:\n\n\n\n\n\n\n\n\n\n\n\n\n");
+            Console.WriteLine("Rendering sample:\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             int rendererBottom = Console.CursorTop;
             Renderer renderer = new();
             Color waterColor = Colors.DarkSlateBlue.WithLuminosity(0.1).WithAlpha(0.7);
@@ -248,7 +248,7 @@ namespace AnsiRenderer
                             .                        .             .           
                                 *             .                   .         .  
                                                 *                              
-                        ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+                                                                               
                                                                                
                                               . *                 .         .  
                             .   *                    .             .           
@@ -270,15 +270,14 @@ namespace AnsiRenderer
                             new(
                                 text:
                                 """
-                                ╭────────────────────────────╮
-                                │                            │
-                                │  Night          Seascapes  │
-                                │                            │
-                                ╰────────────────────────────╯
+                                                            
+                                  Night          Seascapes  
+                                                            
                                 """,
                                 subObjects:new RendererObject[]{
                                     moon,
                                 },
+                                border:Borders.Rounded,
                                 colorAreas:
                                 new ColorArea[]{
                                     new(Colors.Black.WithAlpha(0.5),false,new(0,0,30,5)),
@@ -352,10 +351,10 @@ namespace AnsiRenderer
                 boatRight.ColorAreas[0] = new(Color.FromHSLA(frameCount, 0.5, 0.25), true);
                 boatLeft.X = 50 - pos;
                 if (pos % 2 == 0)
-                    waves.Frame += waveSpeed;
+                    waves.AnimationFrame += waveSpeed;
                 if (60 <= pos && pos < 100 && pos % 4 == 0)
-                    moon.Frame++;
-                renderer.Update(preventBackgroundChange: true);
+                    moon.AnimationFrame++;
+                renderer.Update(preventBackgroundChange: true, limitToObjectScope: true);
                 frameCount++;
                 long time = stopwatch.ElapsedMilliseconds;
                 if (frameTimeFirst == -1)
@@ -367,11 +366,25 @@ namespace AnsiRenderer
                 }
                 stopwatch.Reset();
             }
-            boatRight.X = 10;
-            boatRight.ColorAreas[0] = new(Color.FromHSLA(240, 0.5, 0.25), true);
-            boatLeft.X = -10;
-            moon.Frame = 0;
-            renderer.Update(preventBackgroundChange: true, forceRedraw: true);
+            boatRight.X = 0;
+            boatRight.ColorAreas[0] = new(Color.FromHSLA(60, 0.5, 0.25), true);
+            boatLeft.X = 0;
+            moon.AnimationFrame = 0;
+            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
+
+            renderer.Object.X = 56;
+            boatRight.X = 15;
+            boatRight.ColorAreas[0] = new(Color.FromHSLA(180, 0.5, 0.25), true);
+            boatLeft.X = -15;
+            moon.AnimationFrame = 0;
+            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
+
+            renderer.Object.X = 112;
+            boatRight.X = 30;
+            boatRight.ColorAreas[0] = new(Color.FromHSLA(300, 0.5, 0.25), true);
+            boatLeft.X = -30;
+            moon.AnimationFrame = 0;
+            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
 
             Console.ResetColor();
             Console.SetCursorPosition(0, rendererBottom);
