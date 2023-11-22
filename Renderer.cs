@@ -729,20 +729,31 @@ namespace AnsiRenderer
 
         public void SetCursorPosition(int left, int top) => buffer.Add($"\x1B[{top + 1};{left + 1}H");
 
-        public void SetFgColor(Color color)
+        private static Color lastFgColor = Color.Invalid;
+        private static Color lastBgColor = Color.Invalid;
+
+        public void SetFgColor(Color color, bool forceUpdate = false)
         {
-            if (color == Color.Reset)
-                Write($"\x1B[39m");
-            else
-                Write($"\x1B[38;2;{color.R};{color.G};{color.B}m");
+            if (color != lastFgColor || forceUpdate)
+            {
+                lastFgColor = color;
+                if (color == Color.Reset)
+                    Write($"\x1B[39m");
+                else
+                    Write($"\x1B[38;2;{color.R};{color.G};{color.B}m");
+            }
         }
 
-        public void SetBgColor(Color color)
+        public void SetBgColor(Color color, bool forceUpdate = false)
         {
-            if (color == Color.Reset)
-                Write($"\x1B[49m");
-            else
-                Write($"\x1B[48;2;{color.R};{color.G};{color.B}m");
+            if (color != lastBgColor || forceUpdate)
+            {
+                lastBgColor = color;
+                if (color == Color.Reset)
+                    Write($"\x1B[49m");
+                else
+                    Write($"\x1B[48;2;{color.R};{color.G};{color.B}m");
+            }
         }
 
         public void Flush()
@@ -816,6 +827,20 @@ namespace AnsiRenderer
             )
         {
             lines = text.Split(new string[] { "\r\n", "\n\r", "\r", "\n" }, StringSplitOptions.None);
+
+            if (colorAreas != null)
+                this.colorAreas = colorAreas.ToList();
+
+            if (subObjects != null)
+            {
+                this.subObjects = subObjects.ToList();
+                foreach (RendererObject subObject in subObjects) subObject.Parents.Add(this);
+            }
+
+            if (animation != null)
+                foreach (string animationText in animation)
+                    this.animation.Add(animationText.Split(new string[] { "\r\n", "\n\r", "\r", "\n" }, StringSplitOptions.None));
+
             if (geometry != null)
             {
                 Rectangle Geometry = (Rectangle)geometry;
@@ -830,27 +855,21 @@ namespace AnsiRenderer
                 int width = 0;
                 int height = lines.Length;
                 if (animation != null)
-                    foreach (string animationText in animation)
+                    foreach (string[] animationLines in this.animation)
                     {
-                        string[] animationLines = animationText.Split(new string[] { "\r\n", "\n\r", "\r", "\n" }, StringSplitOptions.None);
                         height = int.Max(height, animationLines.Length);
                         foreach (string line in animationLines) width = int.Max(width, line.Length);
-                        this.animation.Add(animationLines);
                     }
                 foreach (string line in lines) width = int.Max(width, line.Length);
 
                 if (subObjects != null)
                 {
-                    this.subObjects = subObjects.ToList();
                     foreach (RendererObject subObject in subObjects)
                     {
                         width = int.Max(width, subObject.width + subObject.X);
                         height = int.Max(height, subObject.height + subObject.Y);
-                        subObject.Parents.Add(this);
                     }
                 }
-                if (colorAreas != null)
-                    this.colorAreas = colorAreas.ToList();
                 if (border != null)
                 {
                     width += 2;
@@ -1230,7 +1249,7 @@ namespace AnsiRenderer
             Terminal.Flush();
         }
 
-        private void WritePixel(int x, int y, Pixel pixel)
+        private void WritePixel(int x, int y, Pixel pixel, bool forceUpdate = false)
         {
             Color FG = pixel.FG;
             Color BG = pixel.BG;
@@ -1241,22 +1260,23 @@ namespace AnsiRenderer
 
             if (pixel.Ch >= ' ')
             {
-                Terminal.SetFgColor(FG);
-                Terminal.SetBgColor(BG);
+                Terminal.SetFgColor(FG, forceUpdate);
+                Terminal.SetBgColor(BG, forceUpdate);
                 Terminal.Write(pixel.Ch);
             }
             else
             {
-                Terminal.SetBgColor(Colors.Black);
+                Terminal.SetBgColor(Colors.Black, forceUpdate);
                 Terminal.Write(' ');
             }
 
             frameBuffer[x, y] = pixel;
         }
 
-        public void Update(bool forceRedraw = true, bool preventBackgroundChange = false, bool limitToObjectScope = false)
+        public void Update(bool forceRedraw = false, bool limitToObjectScope = false)
         {
             oldFrameBuffer = (Pixel[,])frameBuffer.Clone();
+            frameBuffer.Initialize();
             int x = Object.X;
             int y = Object.Y;
             if (Object.ExternalAlignmentX == Alignment.Center) x += TerminalWidth / 2 - Object.Width / 2;
@@ -1273,16 +1293,14 @@ namespace AnsiRenderer
                     if (frameBuffer[i, j] != oldFrameBuffer[i, j] || updateRow || forceRedraw)
                     {
                         if (!updateRow)
-                        {
-                            updateRow = true;
                             Terminal.SetCursorPosition(i, j);
-                        }
                         if (x <= i && i < Object.Width + x && y <= j && j < Object.Height + y)
-                            WritePixel(i, j, frameBuffer[i, j]);
-                        else if (!preventBackgroundChange || oldFrameBuffer[i, j].Ch > ' ') WritePixel(i, j, new(' ', Color.Reset, Color.Reset));
+                            WritePixel(i, j, frameBuffer[i, j], !updateRow);
+                        else if (oldFrameBuffer[i, j].Ch > ' ') WritePixel(i, j, new(' ', Color.Reset, Color.Reset));
+                        if (!updateRow)
+                            updateRow = true;
                     }
             }
-            Terminal.SetCursorPosition(0, 0);
             Terminal.Flush();
         }
 

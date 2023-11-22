@@ -354,7 +354,7 @@ namespace AnsiRenderer
                     waves.AnimationFrame += waveSpeed;
                 if (60 <= pos && pos < 100 && pos % 4 == 0)
                     moon.AnimationFrame++;
-                renderer.Update(preventBackgroundChange: true, limitToObjectScope: true);
+                renderer.Update(limitToObjectScope: true);
                 frameCount++;
                 long time = stopwatch.ElapsedMilliseconds;
                 if (frameTimeFirst == -1)
@@ -370,21 +370,21 @@ namespace AnsiRenderer
             boatRight.ColorAreas[0] = new(Color.FromHSLA(60, 0.5, 0.25), true);
             boatLeft.X = 0;
             moon.AnimationFrame = 0;
-            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
+            renderer.Update(limitToObjectScope: true);
 
             renderer.Object.X = 56;
             boatRight.X = 15;
             boatRight.ColorAreas[0] = new(Color.FromHSLA(180, 0.5, 0.25), true);
             boatLeft.X = -15;
             moon.AnimationFrame = 0;
-            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
+            renderer.Update(limitToObjectScope: true);
 
             renderer.Object.X = 112;
             boatRight.X = 30;
             boatRight.ColorAreas[0] = new(Color.FromHSLA(300, 0.5, 0.25), true);
             boatLeft.X = -30;
             moon.AnimationFrame = 0;
-            renderer.Update(preventBackgroundChange: true, forceRedraw: true, limitToObjectScope: true);
+            renderer.Update(limitToObjectScope: true);
 
             Console.ResetColor();
             Console.SetCursorPosition(0, rendererBottom);
