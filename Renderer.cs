@@ -1301,6 +1301,7 @@ namespace AnsiRenderer
                             updateRow = true;
                     }
             }
+            Terminal.SetCursorPosition(0, 0);
             Terminal.Flush();
         }
 
@@ -1318,6 +1319,7 @@ namespace AnsiRenderer
 
         public ConsoleKeyInfo ReadKey()
         {
+            Terminal.SetCursorPosition(0, 0);
             ConsoleKeyInfo key = Console.ReadKey();
             for (int i = 0; i < terminalWidth; i++)
             {
