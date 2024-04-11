@@ -119,7 +119,7 @@ namespace AnsiRenderer
                 ▝████████████████▘  
                 """,
                 colorAreas:
-                new ColorArea[]{
+                [
                     new(Colors.SaddleBrown.WithLuminosity(0.15),true,new(0,0,18,9)),
                     new(waterColor,true,new(0,8,18,1)),
                     new(Colors.SaddleBrown.WithLuminosity(0.20),true,new(5,1,1,6)),
@@ -130,7 +130,7 @@ namespace AnsiRenderer
                     new(new(140,120,100),true,new(9,2,3,3)),
                     new(new(140,120,100),true,new(13,3,2,3)),
                     new(waterColor,true,new(18,7,2,1)),
-                },
+                ],
                 externalAlignmentX: Alignment.Start
                 );
             RendererObject boatLeft = new(
@@ -147,7 +147,7 @@ namespace AnsiRenderer
                   ▝████████████████▘
                 """,
                 colorAreas:
-            new ColorArea[]{
+            [
                 new(Colors.SaddleBrown.WithLuminosity(0.15),true,new(2,0,18,9)),
                 new(waterColor,true,new(2,8,18,1)),
                 new(Colors.SaddleBrown.WithLuminosity(0.20),true,new(14,1,1,6)),
@@ -158,7 +158,7 @@ namespace AnsiRenderer
                 new(new(140,120,100),true,new(9,2,3,3)),
                 new(new(140,120,100),true,new(5,3,2,3)),
                 new(waterColor,true,new(0,7,2,1)),
-            },
+            ],
                 externalAlignmentX: Alignment.End
             );
 
@@ -168,14 +168,14 @@ namespace AnsiRenderer
                 wavesFrames[i] = wavesFrames[i - 1].Last() + wavesFrames[i - 1][..^1];
             RendererObject waves = new(
                 animation: wavesFrames,
-                colorAreas: new ColorArea[]{
+                colorAreas: [
                     new(waterColor,true,new(0,0,55,1)),
-                },
+                ],
                 y: 3
             );
 
             RendererObject moon = new(
-                animation: new string[]{
+                animation: [
                     """
                     ▗▟▀▔  
                     █▌    
@@ -226,16 +226,16 @@ namespace AnsiRenderer
                     ▌    ▐
                     ▝▚▁▁▞▘
                     """,
-                },
-                colorAreas: new ColorArea[]{
+                ],
+                colorAreas: [
                     new(Colors.Goldenrod.WithLuminosity(0.8),true),
-                },
+                ],
                 x: -2
             );
 
             renderer.Object = new(
                 subObjects:
-                new RendererObject[]{
+                [
                     new(
                         text:
                         """
@@ -254,16 +254,16 @@ namespace AnsiRenderer
                             .   *                    .             .           
                         """,
                         colorAreas:
-                        new ColorArea[]{
+                        [
                             new(Colors.Black,false,new(0,0,55,13)),
                             new(Colors.White,true,new(0,0,55,13)),
                             new(Colors.Black,true,new(0,3,55,1)),
                             new(Colors.Black.WithLuminosity(0.3),true,new(0,5,55,3)),
                             new(waterColor,true,new(0,5,55,4)),
                             new(waterColor,false,new(0,5,55,3)),
-                        },
+                        ],
                         subObjects:
-                        new RendererObject[]{
+                        [
                             boatRight,
                             boatLeft,
                             waves,
@@ -274,27 +274,27 @@ namespace AnsiRenderer
                                   Night          Seascapes  
                                                             
                                 """,
-                                subObjects:new RendererObject[]{
+                                subObjects:[
                                     moon,
-                                },
+                                ],
                                 border:Borders.Rounded,
                                 colorAreas:
-                                new ColorArea[]{
+                                [
                                     new(Colors.Black.WithAlpha(0.5),false,new(0,0,30,5)),
                                     new(Colors.SlateBlue,true,new(7,0,9,1)),
                                     new(Colors.DarkGoldenrod,true,new(-10,0,5,1)),
-                                },
+                                ],
                                 internalAlignmentX: Alignment.Center,
                                 internalAlignmentY: Alignment.Center,
                                 y: -2
                             ),
-                        },
+                        ],
                         internalAlignmentX: Alignment.Center,
                         internalAlignmentY: Alignment.Center,
                         externalAlignmentX: Alignment.Left,
                         externalAlignmentY: Alignment.Bottom
                     )
-                },
+                ],
                 y: rendererBottom - 12
             );
 

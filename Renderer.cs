@@ -397,10 +397,10 @@ namespace AnsiRenderer
 
         public override readonly string ToString()
         {
-            List<string> name = new()
-            {
+            List<string> name =
+            [
                 $"#{Convert.ToString((uint)this, 16).PadLeft(8, '0')}"
-            };
+            ];
             Colors value = (Colors)((uint)this / 0x100 * 0x100 + 0xff);
             if (Enum.IsDefined(value))
             {
@@ -720,7 +720,7 @@ namespace AnsiRenderer
 
         public BufferedConsole()
         {
-            buffer = new();
+            buffer = [];
         }
 
         public void Write(char c) => buffer.Add(c.ToString());
@@ -764,7 +764,7 @@ namespace AnsiRenderer
             SetBgColor(ConsoleColor.Black);
             SetFgColor(ConsoleColor.White);
             SetCursorPosition(0, 0);
-            buffer = new();
+            buffer = [];
         }
     }
 
@@ -777,12 +777,12 @@ namespace AnsiRenderer
         private char defaultCharacter;
 
         private readonly string[] lines;
-        private readonly List<string[]> animation = new();
+        private readonly List<string[]> animation = [];
         private int animationFrame = 0;
         private Pixel[,] pixels;
         private bool update = true;
-        private List<RendererObject> subObjects = new();
-        private List<ColorArea> colorAreas = new();
+        private List<RendererObject> subObjects = [];
+        private List<ColorArea> colorAreas = [];
         private Border? border;
 
 
@@ -791,7 +791,7 @@ namespace AnsiRenderer
         private Alignment? externalAlignmentX;
         private Alignment? externalAlignmentY;
 
-        private readonly List<RendererObject> Parents = new();
+        private readonly List<RendererObject> Parents = [];
         private bool sizeChanged = false;
 
         public void UpdateParents()
@@ -814,11 +814,11 @@ namespace AnsiRenderer
             int x = 0,
             int y = 0,
             string text = "",
-            string[]? animation = null,
+            IList<string>? animation = null,
             int startFrame = 0,
             char defaultCharacter = '\0',
-            RendererObject[]? subObjects = null,
-            ColorArea[]? colorAreas = null,
+            IList<RendererObject>? subObjects = null,
+            IList<ColorArea>? colorAreas = null,
             Border? border = null,
             Alignment internalAlignmentX = Alignment.Start,
             Alignment internalAlignmentY = Alignment.Start,
@@ -826,20 +826,20 @@ namespace AnsiRenderer
             Alignment? externalAlignmentY = null
             )
         {
-            lines = text.Split(new string[] { "\r\n", "\n\r", "\r", "\n" }, StringSplitOptions.None);
+            lines = text.Split(["\r\n", "\n\r", "\r", "\n"], StringSplitOptions.None);
 
             if (colorAreas != null)
-                this.colorAreas = colorAreas.ToList();
+                this.colorAreas = [.. colorAreas];
 
             if (subObjects != null)
             {
-                this.subObjects = subObjects.ToList();
+                this.subObjects = [.. subObjects];
                 foreach (RendererObject subObject in subObjects) subObject.Parents.Add(this);
             }
 
             if (animation != null)
                 foreach (string animationText in animation)
-                    this.animation.Add(animationText.Split(new string[] { "\r\n", "\n\r", "\r", "\n" }, StringSplitOptions.None));
+                    this.animation.Add(animationText.Split(["\r\n", "\n\r", "\r", "\n"], StringSplitOptions.None));
 
             if (geometry != null)
             {
