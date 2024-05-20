@@ -747,6 +747,11 @@ namespace AnsiRenderer
             SetCursorPosition(0, 0);
             buffer = [];
         }
+
+        public void Clear()
+        {
+            buffer = [];
+        }
     }
 
     public class RendererObject
